@@ -13,10 +13,5 @@ dependency-reduced-pom.xml
 .DS_Store
 Thumbs.db
 
-# Maven wrapper (if added later)
-.mvn/
-mvnw
-mvnw.cmd
-
 # Logs
 *.log

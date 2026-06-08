@@ -39,6 +39,7 @@ public class SseTransport implements Transport {
     private Consumer<String> onMessage;
     private Consumer<Throwable> onError;
     private volatile boolean running = false;
+    private volatile String apiKey;
 
     public SseTransport(int port) {
         this.port = port;
@@ -48,6 +49,11 @@ public class SseTransport implements Transport {
     public SseTransport(String host, int port) {
         this.host = host;
         this.port = port;
+    }
+
+    /** Set an API key for authentication. If set, all requests must include it. */
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
     }
 
     @Override
@@ -75,6 +81,8 @@ public class SseTransport implements Transport {
 
     private void handleSse(HttpExchange exchange) {
         try {
+            // Check authentication
+            if (!checkAuth(exchange)) return;
             exchange.getResponseHeaders().add("Content-Type", "text/event-stream");
             exchange.getResponseHeaders().add("Cache-Control", "no-cache");
             exchange.getResponseHeaders().add("Connection", "keep-alive");
@@ -120,13 +128,16 @@ public class SseTransport implements Transport {
             // CORS headers
             exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
             exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "POST, OPTIONS");
-            exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+            exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type, Authorization");
 
             // Handle CORS preflight
             if ("OPTIONS".equalsIgnoreCase(exchange.getRequestMethod())) {
                 exchange.sendResponseHeaders(204, -1);
                 return;
             }
+
+            // Check authentication
+            if (!checkAuth(exchange)) return;
 
             if (!"POST".equalsIgnoreCase(exchange.getRequestMethod())) {
                 sendJsonResponse(exchange, 405, "{\"error\":\"Method not allowed\"}");
@@ -211,6 +222,25 @@ public class SseTransport implements Transport {
             exchange.close();
         } catch (Exception ignored) {
         }
+    }
+
+    // ---- Authentication ----
+
+    private boolean checkAuth(HttpExchange exchange) throws IOException {
+        if (apiKey == null || apiKey.isBlank()) {
+            return true; // auth not configured, allow all
+        }
+        String auth = exchange.getRequestHeaders().getFirst("Authorization");
+        if (auth != null && auth.equalsIgnoreCase("Bearer " + apiKey)) {
+            return true;
+        }
+        // Also check query param for SSE connections
+        String query = exchange.getRequestURI().getQuery();
+        if (query != null && query.contains("token=" + apiKey)) {
+            return true;
+        }
+        sendJsonResponse(exchange, 401, "{\"error\":\"Unauthorized: valid API key required\"}");
+        return false;
     }
 
     // ---- SSE connection wrapper ----

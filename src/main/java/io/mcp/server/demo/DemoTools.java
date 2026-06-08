@@ -30,11 +30,17 @@ public class DemoTools {
 
     // ========== FILE SYSTEM ==========
 
-    @McpTool(name = "read_file", description = "Read the contents of a file. Returns error if file not found.")
+    @McpTool(name = "read_file", description = "Read the contents of a file")
     public String readFile(
-            @McpParam(value = "path", description = "Absolute path to the file") String path) {
+            @McpParam(value = "path", description = "Absolute or relative path to the file") String path) {
         try {
-            return Files.readString(Path.of(path));
+            var safePath = FileSandbox.resolve(path);
+            if (!safePath.toFile().isFile()) {
+                return "❌ File not found: " + path;
+            }
+            return Files.readString(safePath);
+        } catch (SecurityException e) {
+            return "❌ " + e.getMessage();
         } catch (IOException e) {
             return "❌ Error reading file: " + e.getMessage();
         }
@@ -42,13 +48,15 @@ public class DemoTools {
 
     @McpTool(name = "write_file", description = "Write text content to a file (overwrites if exists)")
     public String writeFile(
-            @McpParam(value = "path", description = "Absolute path to the file") String path,
+            @McpParam(value = "path", description = "Path to the file") String path,
             @McpParam(value = "content", description = "Text content to write") String content) {
         try {
-            Path target = Path.of(path);
-            Files.createDirectories(target.getParent());
-            Files.writeString(target, content);
-            return "✅ Written " + content.length() + " bytes to " + path;
+            var safePath = FileSandbox.resolve(path);
+            Files.createDirectories(safePath.getParent());
+            Files.writeString(safePath, content);
+            return "✅ Written " + content.length() + " bytes to " + safePath;
+        } catch (SecurityException e) {
+            return "❌ " + e.getMessage();
         } catch (IOException e) {
             return "❌ Error writing file: " + e.getMessage();
         }
@@ -56,9 +64,13 @@ public class DemoTools {
 
     @McpTool(name = "list_dir", description = "List files and directories in a folder")
     public String listDir(
-            @McpParam(value = "path", description = "Absolute path to the directory") String path) {
+            @McpParam(value = "path", description = "Path to the directory") String path) {
         try {
-            var files = Files.list(Path.of(path)).sorted().toList();
+            var safePath = FileSandbox.resolve(path);
+            if (!safePath.toFile().isDirectory()) {
+                return "❌ Directory not found: " + path;
+            }
+            var files = Files.list(safePath).sorted().toList();
             if (files.isEmpty()) return "(empty directory)";
 
             var sb = new StringBuilder();
@@ -72,6 +84,8 @@ public class DemoTools {
                         .append("\n");
             }
             return sb.toString().stripTrailing();
+        } catch (SecurityException e) {
+            return "❌ " + e.getMessage();
         } catch (IOException e) {
             return "❌ Error listing directory: " + e.getMessage();
         }
@@ -79,9 +93,9 @@ public class DemoTools {
 
     @McpTool(name = "file_info", description = "Get information about a file or directory")
     public String fileInfo(
-            @McpParam(value = "path", description = "Absolute path to the file/directory") String path) {
+            @McpParam(value = "path", description = "Path to the file/directory") String path) {
         try {
-            var p = Path.of(path);
+            var p = FileSandbox.resolve(path);
             if (!Files.exists(p)) return "❌ File not found: " + path;
 
             var sb = new StringBuilder();
@@ -98,12 +112,18 @@ public class DemoTools {
 
     // ========== TEXT PROCESSING ==========
 
-    @McpTool(name = "word_count", description = "Count characters, words, and lines in text")
+    @McpTool(name = "word_count", description = "Count characters, words, and lines in text (max 1MB)")
     public String wordCount(
             @McpParam(value = "text", description = "Text to analyze") String text) {
+        if (text == null || text.isBlank()) {
+            return "Characters: 0\nWords: 0\nLines: 0";
+        }
+        if (text.length() > 1_000_000) {
+            return "❌ Text too large (max 1MB)";
+        }
         int chars = text.length();
-        int words = text.isBlank() ? 0 : text.trim().split("\\s+").length;
-        int lines = text.isEmpty() ? 0 : text.split("\n", -1).length;
+        int words = text.trim().split("\\s+").length;
+        int lines = text.split("\n", -1).length;
         return """
                 Characters: %d
                 Words:      %d
@@ -111,9 +131,11 @@ public class DemoTools {
                 """.formatted(chars, words, lines).stripTrailing();
     }
 
-    @McpTool(name = "base64_encode", description = "Encode text to Base64")
+    @McpTool(name = "base64_encode", description = "Encode text to Base64 (max 10MB)")
     public String base64Encode(
             @McpParam(value = "text", description = "Text to encode") String text) {
+        if (text == null || text.isEmpty()) return "(empty)";
+        if (text.length() > 10_000_000) return "❌ Text too large (max 10MB)";
         return Base64.getEncoder().encodeToString(text.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -128,9 +150,11 @@ public class DemoTools {
         }
     }
 
-    @McpTool(name = "url_encode", description = "URL-encode a string")
+    @McpTool(name = "url_encode", description = "URL-encode a string (max 1MB)")
     public String urlEncode(
             @McpParam(value = "text", description = "Text to URL-encode") String text) {
+        if (text == null) return "";
+        if (text.length() > 1_000_000) return "❌ Text too large (max 1MB)";
         return URLEncoder.encode(text, StandardCharsets.UTF_8);
     }
 
