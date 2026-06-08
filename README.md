@@ -1,5 +1,9 @@
 # MCP Java SDK 🐱
 
+[![CI](https://github.com/jianglai-2000/mcp-java/actions/workflows/ci.yml/badge.svg)](https://github.com/jianglai-2000/mcp-java/actions/workflows/ci.yml)
+[![Java](https://img.shields.io/badge/Java-21%2B-orange)](https://adoptium.net/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 > **让 AI 客户端（Claude Desktop、Cursor 等）直接调用你写的 Java 工具！**
 
 > A lightweight Java SDK for the [Model Context Protocol (MCP)](https://spec.modelcontextprotocol.io) — build servers and expose Java tools to AI clients.
