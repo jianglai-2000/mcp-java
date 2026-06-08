@@ -11,7 +11,7 @@
 
     <name>MCP Java SDK</name>
     <description>A lightweight Java SDK for building Model Context Protocol servers</description>
-    <url>https://github.com/your-username/mcp-java-server</url>
+    <url>https://github.com/jianglai-2000/mcp-java</url>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
