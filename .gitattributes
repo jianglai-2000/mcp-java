@@ -1,0 +1,13 @@
+# Force LF line endings for shell scripts
+mvnw text eol=lf
+mvnw.cmd text eol=crlf
+# Java source files
+*.java text
+# XML/YAML
+*.xml text
+*.yml text
+*.yaml text
+# Markdown
+*.md text
+# Properties
+*.properties text
