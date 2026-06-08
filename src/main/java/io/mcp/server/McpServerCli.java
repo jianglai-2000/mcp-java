@@ -9,55 +9,58 @@ import picocli.CommandLine.Option;
 import java.util.concurrent.Callable;
 
 /**
- * CLI entry point for running an MCP server.
- * <p>
- * Usage:
+ * CLI 入口，启动 MCP 服务器。
+ *
+ * 使用方式：
  * <pre>
- * # stdio mode (default, for Claude Desktop subprocess)
+ * # 默认 stdio 模式（给 Claude Desktop 当子进程用）
  * java -jar mcp-java.jar
  *
- * # SSE/HTTP mode (standalone server)
+ * # SSE/HTTP 模式（独立 Web 服务）
  * java -jar mcp-java.jar --transport sse --port 8080
  *
- * # SSE with API key authentication
- * java -jar mcp-java.jar --transport sse --port 8080 --api-key my-secret-key
+ * # SSE + API Key 认证
+ * java -jar mcp-java.jar --transport sse --port 8080 --api-key ***
+ *
+ * # 文件沙箱 + SSE
+ * java -jar mcp-java.jar --transport sse --file-root /data
  * </pre>
  */
 @Command(
         name = "mcp-java",
         mixinStandardHelpOptions = true,
         version = "mcp-java 0.1.0",
-        description = "A lightweight MCP (Model Context Protocol) server for Java"
+        description = "轻量级 MCP（Model Context Protocol）服务器，让 AI 客户端调用你的 Java 工具"
 )
 public class McpServerCli implements Callable<Integer> {
 
     @Option(names = {"-n", "--name"},
-            description = "Server name (default: mcp-java, or $MCP_SERVER_NAME)")
+            description = "服务器名称（默认: mcp-java，或环境变量 MCP_SERVER_NAME）")
     private String serverName;
 
     @Option(names = {"-t", "--transport"},
-            description = "Transport mode: stdio (default) or sse (or $MCP_TRANSPORT)")
+            description = "传输模式: stdio（默认）| sse（或环境变量 MCP_TRANSPORT）")
     private String transportMode;
 
     @Option(names = {"-p", "--port"},
-            description = "HTTP port for SSE transport (default: 8080, or $MCP_PORT)")
+            description = "SSE 模式 HTTP 端口（默认: 8080，或环境变量 MCP_PORT）")
     private Integer port;
 
     @Option(names = {"--host"},
-            description = "Host address for SSE transport (default: localhost, or $MCP_HOST)")
+            description = "SSE 模式监听地址（默认: localhost，设 0.0.0.0 允许外网访问，或环境变量 MCP_HOST）")
     private String host;
 
     @Option(names = {"-k", "--api-key"},
-            description = "API key for SSE authentication (or $MCP_API_KEY)")
+            description = "SSE 认证密钥（可选，或环境变量 MCP_API_KEY）")
     private String apiKey;
 
     @Option(names = {"--file-root"},
-            description = "Restricted root directory for file operations (or $MCP_FILE_ROOT)")
+            description = "文件沙箱根目录，限制文件操作范围（可选，或环境变量 MCP_FILE_ROOT）")
     private String fileRoot;
 
     @Override
     public Integer call() {
-        // Load config from CLI args + env vars
+        // 加载配置（环境变量 + CLI 参数覆盖）
         var config = new McpServerConfig();
 
         if (serverName != null) config.setServerName(serverName);
@@ -67,19 +70,19 @@ public class McpServerCli implements Callable<Integer> {
         if (apiKey != null) config.setApiKey(apiKey);
         if (fileRoot != null) config.setFileRoot(fileRoot);
 
+        // 创建传输层
         Transport transport = config.createTransport();
 
-        var builder = McpServer.create(config.getServerName(), config.getServerVersion())
-                .withTransport(transport);
-
-        // Apply file sandbox if configured
+        // 文件沙箱配置写入系统属性（DemoTools 中的 FileSandbox 会读取）
         if (config.getFileRoot() != null && !config.getFileRoot().isBlank()) {
-            System.out.println("File operations restricted to: " + config.getFileRoot());
-            // File sandbox is applied via system property for now
             System.setProperty("mcp.file.root", config.getFileRoot());
+            System.out.println("📁 File operations restricted to: " + config.getFileRoot());
         }
 
-        builder.registerTools(new DemoTools())
+        // 启动服务器
+        McpServer.create(config.getServerName(), config.getServerVersion())
+                .withTransport(transport)
+                .registerTools(new DemoTools())
                 .build()
                 .start();
 
