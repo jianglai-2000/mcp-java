@@ -229,20 +229,100 @@ public class DemoTools {
         }
     }
 
-    @McpTool(name = "calculate", description = "Evaluate a simple arithmetic expression (e.g., '2 + 3 * 4')")
+    @McpTool(name = "calculate", description = "Evaluate a simple arithmetic expression (e.g., '2 + 3 * 4'). Only supports + - * / ( )")
     public String calculate(
-            @McpParam(value = "expression", description = "Arithmetic expression to evaluate. Supports + - * / ( )") String expression) {
+            @McpParam(value = "expression", description = "Arithmetic expression. Supports + - * / ( ) and numbers only") String expression) {
+        if (expression == null || expression.isBlank()) {
+            return "❌ Please provide an expression";
+        }
+        // Strip whitespace and validate: only digits, +, -, *, /, ., (, ) allowed
+        String cleaned = expression.replaceAll("\\s+", "");
+        if (!cleaned.matches("[\\d+\\-*/.()]+")) {
+            return "❌ Invalid expression: only numbers and + - * / ( ) are allowed";
+        }
         try {
-            // Simple safe evaluator using ScriptEngine (only JDK built-in Nashorn successor)
-            // For a production tool, consider using exp4j or similar
-            var engine = new javax.script.ScriptEngineManager().getEngineByName("JavaScript");
-            if (engine == null) {
-                return "❌ Script engine not available on this JDK";
+            double result = evalSimple(cleaned);
+            // Display as integer if whole number
+            if (result == Math.floor(result) && !Double.isInfinite(result)) {
+                return expression + " = " + (long) result;
             }
-            Object result = engine.eval(expression);
             return expression + " = " + result;
         } catch (Exception e) {
             return "❌ Error evaluating expression: " + e.getMessage();
         }
+    }
+
+    /**
+     * Simple arithmetic evaluator—no ScriptEngine, no code injection.
+     * Only handles + - * / ( ) with double precision. Thread-safe.
+     */
+    private static double evalSimple(String expr) {
+        return addSub(expr, new int[]{0});
+    }
+
+    private static double addSub(String expr, int[] pos) {
+        double result = mulDiv(expr, pos);
+        while (pos[0] < expr.length()) {
+            char op = expr.charAt(pos[0]);
+            if (op == '+') {
+                pos[0]++;
+                result += mulDiv(expr, pos);
+            } else if (op == '-') {
+                pos[0]++;
+                result -= mulDiv(expr, pos);
+            } else {
+                break;
+            }
+        }
+        return result;
+    }
+
+    private static double mulDiv(String expr, int[] pos) {
+        double result = parseNumber(expr, pos);
+        while (pos[0] < expr.length()) {
+            char op = expr.charAt(pos[0]);
+            if (op == '*') {
+                pos[0]++;
+                result *= parseNumber(expr, pos);
+            } else if (op == '/') {
+                pos[0]++;
+                double divisor = parseNumber(expr, pos);
+                if (divisor == 0) throw new ArithmeticException("Division by zero");
+                result /= divisor;
+            } else {
+                break;
+            }
+        }
+        return result;
+    }
+
+    private static double parseNumber(String expr, int[] pos) {
+        // Handle parentheses
+        if (expr.charAt(pos[0]) == '(') {
+            pos[0]++; // skip '('
+            double result = addSub(expr, pos);
+            if (pos[0] >= expr.length() || expr.charAt(pos[0]) != ')') {
+                throw new IllegalArgumentException("Mismatched parentheses");
+            }
+            pos[0]++; // skip ')'
+            return result;
+        }
+        // Handle leading minus sign (negative numbers)
+        if (expr.charAt(pos[0]) == '-') {
+            pos[0]++;
+            return -parseNumber(expr, pos);
+        }
+        // Parse numeric value
+        int start = pos[0];
+        boolean hasDecimal = false;
+        while (pos[0] < expr.length() && (Character.isDigit(expr.charAt(pos[0]))
+                || (expr.charAt(pos[0]) == '.' && !hasDecimal))) {
+            if (expr.charAt(pos[0]) == '.') hasDecimal = true;
+            pos[0]++;
+        }
+        if (pos[0] == start) {
+            throw new IllegalArgumentException("Expected number at position " + pos[0]);
+        }
+        return Double.parseDouble(expr.substring(start, pos[0]));
     }
 }
