@@ -1,4 +1,4 @@
-# MCP Java SDK 🐱
+﻿# MCP Java SDK 🐱
 
 [![CI](https://github.com/jianglai-2000/mcp-java/actions/workflows/ci.yml/badge.svg)](https://github.com/jianglai-2000/mcp-java/actions/workflows/ci.yml)
 [![Java](https://img.shields.io/badge/Java-21%2B-orange)](https://adoptium.net/)
@@ -34,7 +34,7 @@ MCP is the standard protocol for AI tool integration — think of it as a USB-C 
 ```xml
 <dependency>
     <groupId>io.mcp</groupId>
-    <artifactId>mcp-java-server</artifactId>
+    <artifactId>mcp-java</artifactId>
     <version>0.1.0</version>
 </dependency>
 ```
@@ -72,7 +72,7 @@ McpServer.create("my-ai-tools", "1.0.0")
 
 ```bash
 ./mvnw clean package -DskipTests
-java -jar target/mcp-java-server-0.1.0.jar
+java -jar target/mcp-java-0.1.0.jar
 ```
 
 ---
@@ -142,7 +142,7 @@ Client                    Server (mcp-java)
   "mcpServers": {
     "my-java-tools": {
       "command": "java",
-      "args": ["-jar", "D:/path/to/mcp-java-server-0.1.0.jar"]
+      "args": ["-jar", "D:/path/to/mcp-java-0.1.0.jar"]
     }
   }
 }
@@ -223,3 +223,4 @@ PRs welcome! 欢迎提交 Pull Request。
 ---
 
 > Made with 🐱 by a Java developer who believes code should be useful, not just a job.
+
