@@ -1,0 +1,15 @@
+<configuration scan="true" scanPeriod="30 seconds">
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- MCP 日志输出到 stderr，不干扰 stdout 的 JSON-RPC 通信 -->
+    <logger name="io.mcp.server" level="INFO"/>
+
+    <root level="WARN">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>
