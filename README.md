@@ -75,22 +75,34 @@ java -jar target/mcp-java-server-0.1.0.jar
 
 ## 🔧 通信流程 / Protocol
 
+### stdio 模式
 ```mermaid
 sequenceDiagram
-    participant AI as AI 客户端<br/>(Claude Desktop)
+    participant AI as AI 客户端
     participant SDK as MCP Java SDK
     participant Tool as 你的工具
 
     AI->>SDK: initialize
     SDK-->>AI: 服务信息 + 能力声明
-
     AI->>SDK: tools/list
     SDK-->>AI: [{name, description, inputSchema}, ...]
-
     AI->>SDK: tools/call {name: "get_weather", arguments: {city: "上海"}}
     SDK->>Tool: 反射调用方法
     Tool-->>SDK: "上海 25°C 晴 ☀️"
     SDK-->>AI: {content: [{type: "text", text: "上海 25°C 晴 ☀️"}]}
+```
+
+### SSE/HTTP 模式
+```
+Client                    Server (mcp-java)
+  |                          |
+  |--- GET /sse ------------>|  建立 SSE 连接
+  |<-- event: endpoint ------|  告诉客户端 POST 地址
+  |    data: /message?sid=x  |
+  |                          |
+  |--- POST /message ------->|  发送 JSON-RPC 请求
+  |<-- 202 Accepted ---------|  立即确认
+  |<-- event: message -------|  通过 SSE 推送响应
 ```
 
 ---
@@ -138,22 +150,33 @@ sequenceDiagram
 
 ## 🧪 手动测试 / Manual Test
 
-```bash
-# 用 Maven Wrapper（不需要本地安装 Maven）
-./mvnw clean package -DskipTests
-
-# 或者用本地 Maven
-mvn clean package -DskipTests
-
-# 压测：模拟客户端发消息
-java -jar target/mcp-java-server-0.1.0.jar
-```
-
-在另一个终端喂消息：
+### stdio 模式（默认，适合 Claude Desktop）
 
 ```bash
-echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | java -jar target/mcp-java-server-0.1.0.jar
+java -jar target/mcp-java-0.1.0.jar
 ```
+
+另一个终端喂消息测试：
+
+```bash
+echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | java -jar target/mcp-java-0.1.0.jar
+```
+
+### SSE/HTTP 模式（独立 Web 服务）
+
+```bash
+java -jar target/mcp-java-0.1.0.jar --transport sse --port 8080
+```
+
+测试：
+
+```bash
+curl -X POST http://localhost:8080/message \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+```
+
+首次使用需要先连接 `/sse` 获取 session，具体见 MCP SSE 协议。
 
 ---
 
@@ -164,7 +187,8 @@ echo '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}' | java -jar ta
 | JSON-RPC 2.0 消息协议 | ✅ |
 | stdio 传输层（stdin/stdout） | ✅ |
 | stdin EOF 自动退出 | ✅ |
-| SSE/HTTP 传输 | 🔜 |
+| SSE/HTTP 传输 | ✅ |
+| CORS 支持 | ✅ |
 | `@McpTool` / `@McpParam` 注解 | ✅ |
 | `@McpToolProvider` 类注解 | ✅ |
 | 自动 JSON Schema 生成 | ✅ |
