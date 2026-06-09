@@ -77,6 +77,95 @@ java -jar target/mcp-java-0.1.0.jar
 
 ---
 
+## 🧩 Resources & Prompts 使用示例
+
+### Resources — 向 AI 客户端暴露数据和文件
+
+```java
+import io.mcp.server.annotation.*;
+import io.mcp.server.registry.ResourceDefinition;
+import java.util.List;
+
+public class MyResources {
+
+    @McpResourceProvider
+    public List<ResourceDefinition> listResources() {
+        return List.of(
+            new ResourceDefinition(
+                "file:///logs/app.log",           // URI 标识
+                "Application Log",                 // 名称
+                "Server application log file",      // 描述
+                "text/plain",                       // MIME 类型
+                () -> java.nio.file.Files.readString(
+                    java.nio.file.Path.of("/var/log/app.log"))
+            )
+        );
+    }
+}
+
+// 注册到 server
+McpServer.create("my-server", "1.0.0")
+    .registerResources(new MyResources())
+    .build()
+    .start();
+```
+
+AI 客户端可以：`resources/list` → `resources/read {uri: "file:///logs/app.log"}`
+
+### Prompts — 预定义提示模板
+
+```java
+import io.mcp.server.annotation.*;
+import io.mcp.server.registry.PromptDefinition;
+import io.mcp.server.protocol.JsonRpcMessage;
+import java.util.List;
+
+public class MyPrompts {
+
+    @McpPromptProvider
+    public List<PromptDefinition> listPrompts() {
+        var messages = JsonRpcMessage.mapper().createObjectNode();
+        var arr = messages.putArray("messages");
+        var msg = arr.addObject();
+        msg.put("role", "assistant");
+        msg.put("content", "I'll help you analyze this text.");
+
+        return List.of(
+            new PromptDefinition(
+                "analyze",                         // 名称
+                "Analyze the given text",           // 描述
+                List.of(
+                    new PromptDefinition.PromptArgument(
+                        "text", "The text to analyze", true)
+                ),
+                messages                            // 返回的消息
+            )
+        );
+    }
+}
+
+// 注册到 server
+McpServer.create("my-server", "1.0.0")
+    .registerPrompts(new MyPrompts())
+    .build()
+    .start();
+```
+
+AI 客户端可以：`prompts/list` → `prompts/get {name: "analyze"}`
+
+### 三种能力一起注册
+
+```java
+McpServer.create("my-server", "1.0.0")
+    .registerTools(new MyTools())
+    .registerResources(new MyResources())
+    .registerPrompts(new MyPrompts())
+    .build()
+    .start();
+```
+
+---
+
 ## 🔧 通信流程 / Protocol
 
 ### stdio 模式
@@ -196,15 +285,14 @@ curl -X POST http://localhost:8080/message \
 | `@McpTool` / `@McpParam` 注解 | ✅ |
 | `@McpToolProvider` 类注解 | ✅ |
 | 自动 JSON Schema 生成 | ✅ |
-| 线程安全的工具注册中心 | ✅ |
+| `@McpResourceProvider` - 资源能力 | ✅ |
+| `@McpPromptProvider` - 提示能力 | ✅ |
+| 线程安全的注册中心 | ✅ |
 | Logback 日志（输出到 stderr） | ✅ |
 | 完整 MCP 握手流程 | ✅ |
 | Maven Wrapper (`mvnw`) | ✅ |
 | 中英双语文档 | ✅ |
-| 单元测试（14 个） | ✅ |
-| 集成测试（3 个） | ✅ |
-| MCP Resources 支持 | 🔜 |
-| MCP Prompts 支持 | 🔜 |
+| 单元测试（20 个） | ✅ |
 | Spring Boot Starter | 🔜 |
 | Maven Central 发布 | 🔜 |
 
