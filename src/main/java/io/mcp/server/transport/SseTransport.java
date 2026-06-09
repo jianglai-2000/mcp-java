@@ -66,6 +66,7 @@ public class SseTransport implements Transport {
 
             server.createContext("/sse", this::handleSse);
             server.createContext("/message", this::handleMessage);
+            server.createContext("/health", this::handleHealth);
 
             server.setExecutor(Executors.newVirtualThreadPerTaskExecutor());
             server.start();
@@ -168,6 +169,17 @@ public class SseTransport implements Transport {
             } catch (IOException ignored) {
             }
         }
+    }
+
+    /** GET /health — server status endpoint for service discovery */
+    private void handleHealth(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().add("Content-Type", "application/json");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        String json = "{\"status\":\"ok\",\"server\":\"mcp-java\",\"transport\":\"sse\",\"port\":" + getPort() + "}";
+        var bytes = json.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        exchange.sendResponseHeaders(200, bytes.length);
+        exchange.getResponseBody().write(bytes);
+        exchange.getResponseBody().close();
     }
 
     // ---- Transport interface ----
