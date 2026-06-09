@@ -83,6 +83,8 @@ public class McpServerCli implements Callable<Integer> {
         McpServer.create(config.getServerName(), config.getServerVersion())
                 .withTransport(transport)
                 .registerTools(new DemoTools())
+                .registerResources(new io.mcp.server.demo.DemoResourceProvider())
+                .registerPrompts(new io.mcp.server.demo.DemoPromptProvider())
                 .build()
                 .start();
 
